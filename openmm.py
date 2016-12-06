@@ -27,19 +27,48 @@ def getResiduePositions(residue, positions):
     return np.array(positions)[ndx]
 
 def uniquePairs(index):
-    """ list of unique, internal pairs """
+    """ list of unique, internal pairs in list
+    
+    Parameters
+    ----------
+    index : list
+        List of index
+        
+    Example
+    -------
+    >>> print( uniquePairs([0,1,2]) )
+    [[0,1],[[1,2]]
+    """
     return list(combinations( range(index[0],index[-1]+1),2 ) )
 
-def addHarmonicConstraint(harmonicforce, pairlist, positions, threshold, k):
-    """ add harmonic bonds between pairs if distance is smaller than threshold """
-    print('Constraint force constant =', k)
+def addHarmonicConstraint(harmonicforce, pairlist, positions, threshold, k, verbose=False):
+    """Add harmonic bonds between pairs if distance is smaller than threshold
+    
+    Parameters
+    ----------
+    harmoniceforce : OpenMM HarmonicForce object
+        Bonds are added here
+    pairlist : numpy array
+        List of atom pair index
+    positions : numpy array
+        All positions in the system
+    threshold : float
+        Distance cutoff for adding constraint
+    k : float
+        Force constant of constraint
+    verbose : bool
+        Verbose output
+    """
+    if verbose:
+        print('Constraint force constant =', k)
     for i,j in pairlist:
         distance = unit.norm( positions[i]-positions[j] )
         if distance<threshold:
             harmonicforce.addBond( i,j,
                                    distance.value_in_unit(unit.nanometer),
                                    k.value_in_unit( unit.kilojoule/unit.nanometer**2/unit.mole ))
-            print("added harmonic bond between", i, j, 'with distance',distance)
+            if verbose:
+                print("added harmonic bond between", i, j, 'with distance',distance)
 
 def addExclusions(nonbondedforce, pairlist):
     """ add nonbonded exclusions between pairs """
@@ -70,13 +99,15 @@ def rigidifyResidue(residue, harmonicforce, positions, nonbondedforce=None,
             print('added nonbonded exclusion between', i, j)
             nonbonded.addExclusion(i,j)
             
-def centerOfMass(positions, box):
+def centerOfMass(index, pos, box):
     """Calculates the geometric center taking into account periodic boundaries
     
     Parameters
     ----------
-    positions : numpy array
-        Positions to calculate COM for
+    index : list
+       Index of the particles to caculate COM for
+    pos : numpy array
+        All positions in the system
     box : numpy array
         Box side lengths for periodic boundaries
         
@@ -90,7 +121,7 @@ def centerOfMass(positions, box):
         More here: https://en.wikipedia.org/wiki/Center_of_mass#Systems_with_periodic_boundary_conditions
         Numpy style docstring: http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html
     """
-    theta=np.divide(positions, box).astype(np.float) * 2*np.pi
+    theta=np.divide(positions[index], box).astype(np.float) * 2*np.pi
     x1=np.array( [np.cos(theta[:,0]).mean(), np.cos(theta[:,1]).mean(), np.cos(theta[:,2]).mean()] )
     x2=np.array( [np.sin(theta[:,0]).mean(), np.sin(theta[:,1]).mean(), np.sin(theta[:,2]).mean()] )
     return box * (np.arctan2(-x1,-x2)+np.pi) / (2*np.pi)
